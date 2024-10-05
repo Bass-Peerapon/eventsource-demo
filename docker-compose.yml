@@ -1,0 +1,104 @@
+version: "3"
+services:
+  ordering-service:
+    container_name: ordering-service
+    build:
+      context: ./ordering/
+      dockerfile: Dockerfile
+    restart: always
+    depends_on:
+      - ordering-postgres
+    ports:
+      - "3000:3000"
+    environment:
+      - POSTGRES_DNS=postgresql://postgres:admin@ordering-postgres:5432/order-event?sslmode=disable
+      - APP_PORT=3000
+      - KAFKA_BROKERS=kafka:9092
+      - DEBUG=true
+    networks:
+      - default
+
+  ordering-postgres:
+    container_name: ordering-postgres
+    image: postgres
+    restart: always
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=admin
+      - POSTGRES_DB=order-event
+    networks:
+      - default
+
+  inventory-service:
+    container_name: inventory-service
+    build:
+      context: ./inventory/
+      dockerfile: Dockerfile
+    restart: always
+    environment:
+      - KAFKA_BROKERS=kafka:9092
+      - ORDER_EVENT_GROUP=ORDER_EVENT_GROUP
+      - ORDER_EVENT_TOPICS=ORDER_EVENT
+      - DEBUG=true
+    networks:
+      - default
+
+  adminer:
+    image: adminer
+    restart: always
+    ports:
+      - "8080:8080"
+    networks:
+      - default
+
+    # message broker - zookeeper
+  # reference: https://github.com/bitnami/bitnami-docker-kafka/blob/master/docker-compose.yml
+  zookeeper:
+    image: "bitnami/zookeeper:3.7"
+    restart: always
+    container_name: zookeeper
+    environment:
+      ALLOW_ANONYMOUS_LOGIN: "yes"
+    networks:
+      - default
+
+  # message broker - kafka
+  # reference: https://github.com/bitnami/bitnami-docker-kafka/blob/master/docker-compose.yml
+  kafka:
+    image: "bitnami/kafka:latest"
+    restart: always
+    container_name: kafka
+    environment:
+      KAFKA_CFG_ZOOKEEPER_CONNECT: zookeeper:2181
+      ALLOW_PLAINTEXT_LISTENER: "yes"
+    ports:
+      - "9092:9092"
+    networks:
+      - default
+    depends_on:
+      - zookeeper
+
+  # message broker - kafka ui
+  # reference: https://github.com/cloudhut/kowl/tree/master/docs/local
+  kowl:
+    image: quay.io/cloudhut/kowl:v1.4.0
+    container_name: kowl
+    platform: linux/amd64
+    restart: always
+    hostname: kowl
+    volumes:
+      - ./kowl.yml:/etc/kowl/config.yaml
+    entrypoint: ./kowl --config.filepath=/etc/kowl/config.yaml
+    ports:
+      - "9999:8080"
+    networks:
+      - default
+    depends_on:
+      - kafka
+
+networks:
+  default:
+    external:
+      name: proxy

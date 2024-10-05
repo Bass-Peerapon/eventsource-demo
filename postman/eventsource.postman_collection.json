@@ -1,0 +1,73 @@
+{
+	"info": {
+		"_postman_id": "1229097b-94a9-4e6d-9bb8-b386af6d88cc",
+		"name": "eventsource",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "12965860"
+	},
+	"item": [
+		{
+			"name": "create order",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"name\": \"postman v2\",\n    \"order_items\": [\n        {\n            \"id\": \"f544086a-0007-4512-b0c2-fb7380cdf695\",\n            \"name\": \"item1\",\n            \"amount\": 6\n        }\n    ]\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://localhost:3000/orders",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "3000",
+					"path": [
+						"orders"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "update order",
+			"request": {
+				"method": "PUT",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"name\": \"postman v2.2\",\n    \"order_items\": [\n        {\n            \"id\": \"f544086a-0007-4512-b0c2-fb7380cdf695\",\n            \"name\": \"item1\",\n            \"amount\": 12\n        },\n        {\n            \"id\": \"d0f4eb5f-254b-4c0f-a735-7e426031c1b6\",\n            \"name\": \"item2\",\n            \"amount\": 6\n        },\n        {\n            \"id\": \"b53bd3fa-6501-4c99-98c0-f902a76178f8\",\n            \"name\": \"item2\",\n            \"amount\": 5\n        }\n    ]\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://localhost:3000/orders/:id",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "3000",
+					"path": [
+						"orders",
+						":id"
+					],
+					"variable": [
+						{
+							"key": "id",
+							"value": "a2186d8f-c622-416d-aeb2-d4be7fdaf020"
+						}
+					]
+				}
+			},
+			"response": []
+		}
+	]
+}
