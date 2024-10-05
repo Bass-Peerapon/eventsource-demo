@@ -21,13 +21,14 @@ import (
 )
 
 var (
-	POSTGRES_DNS  = os.Getenv("POSTGRES_DNS")
-	APP_PORT      = os.Getenv("APP_PORT")
-	KAFKA_BROKERS = strings.Split(os.Getenv("KAFKA_BROKERS"), ",")
+	ORDER_EVENT_STORE = os.Getenv("ORDER_EVENT_STORE")
+	ORDER_REAND_DB    = os.Getenv("ORDER_REAND_DB")
+	APP_PORT          = os.Getenv("APP_PORT")
+	KAFKA_BROKERS     = strings.Split(os.Getenv("KAFKA_BROKERS"), ",")
 )
 
-func ConnectPostgres() *sqlx.DB {
-	db, err := sqlx.Connect("postgres", POSTGRES_DNS)
+func ConnectPostgres(conn string) *sqlx.DB {
+	db, err := sqlx.Connect("postgres", conn)
 	if err != nil {
 		panic(err)
 	}
@@ -35,19 +36,28 @@ func ConnectPostgres() *sqlx.DB {
 }
 
 func main() {
-	db := ConnectPostgres()
-	defer db.Close()
+	orderEventStoreDB := ConnectPostgres(ORDER_EVENT_STORE)
+	defer orderEventStoreDB.Close()
 
-	if err := runMigrations(db); err != nil {
+	orderReadDB := ConnectPostgres(ORDER_REAND_DB)
+	defer orderReadDB.Close()
+
+	if err := runMigrations(orderEventStoreDB, "file://migrate/order_event"); err != nil {
 		log.Fatal(err)
 	}
-	eventRepo := postgres.NewEventRepository(db)
-	aggregateRepo := postgres.NewAggregateRepository(db)
-	queryOrderRepository := postgres.NewQueryOrderRepository(db)
-	subscriptionRepository := postgres.NewEventSubscriptionRepository(db)
+
+	if err := runMigrations(orderReadDB, "file://migrate/order_read"); err != nil {
+		log.Fatal(err)
+	}
+
+	eventRepo := postgres.NewEventRepository(orderEventStoreDB)
+	aggregateRepo := postgres.NewAggregateRepository(orderEventStoreDB)
+	queryOrderRepository := postgres.NewQueryOrderRepository(orderReadDB)
+	subscriptionRepository := postgres.NewEventSubscriptionRepository(orderEventStoreDB)
 	messagBroker := messaging.NewKafaMessageBroker(KAFKA_BROKERS)
 
-	commandOrderUsecase := application.NewCommandOrderUsecase(eventRepo, aggregateRepo)
+	orderProjection := application.NewOrderProjection(queryOrderRepository)
+	commandOrderUsecase := application.NewCommandOrderUsecase(eventRepo, aggregateRepo, orderProjection)
 	queryOrderUsecase := application.NewQueryOrderUsecase(queryOrderRepository)
 	eventSubScriptionProcessor := application.NewEventSubscriptionProcessor(subscriptionRepository, eventRepo)
 	orderIntegrationEventSender := application.NewOrderIntegrationEventSender(eventRepo, aggregateRepo, messagBroker)
@@ -68,7 +78,7 @@ func main() {
 	e.Logger.Fatal(e.Start(":" + APP_PORT))
 }
 
-func runMigrations(db *sqlx.DB) error {
+func runMigrations(db *sqlx.DB, path string) error {
 	// Initialize migrate with a PostgreSQL database instance
 	driver, err := migrate_postgres.WithInstance(db.DB, &migrate_postgres.Config{})
 	if err != nil {
@@ -76,8 +86,8 @@ func runMigrations(db *sqlx.DB) error {
 	}
 
 	m, err := migrate.NewWithDatabaseInstance(
-		"file://migrate", // Path to the migrations folder
-		"postgres",       // Database name
+		path,       // Path to the migrations folder
+		"postgres", // Database name
 		driver,
 	)
 	if err != nil {

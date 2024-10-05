@@ -11,4 +11,5 @@ type Order struct {
 
 type QueryOrderRepository interface {
 	GetOrders() ([]Order, error)
+	SaveOrder(OrderAggregate *OrderAggregate) error
 }

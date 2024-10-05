@@ -16,8 +16,9 @@ type CommandOrderUsecase interface {
 }
 
 type commandOrderUsecase struct {
-	eventRepo     core.EventRepository
-	aggregateRepo core.AggregateRepository
+	eventRepo       core.EventRepository
+	aggregateRepo   core.AggregateRepository
+	orderProjection OrderProjection
 }
 
 // CreateOrder implements OrderUsecase.
@@ -27,6 +28,9 @@ func (o *commandOrderUsecase) CreateOrder(name string, orderItems []order.OrderI
 		return err
 	}
 	if err := o.eventRepo.SaveEvents(order.Events); err != nil {
+		return err
+	}
+	if err := o.orderProjection.HandleEvent(order); err != nil {
 		return err
 	}
 	return nil
@@ -76,6 +80,10 @@ func (o *commandOrderUsecase) UpdateOrderItemAmount(id uuid.UUID, orderItemID uu
 				return err
 			}
 		}
+	}
+
+	if err := o.orderProjection.HandleEvent(&orderAggregate); err != nil {
+		return err
 	}
 
 	return nil
@@ -136,12 +144,17 @@ func (o *commandOrderUsecase) UpdatedOrder(id uuid.UUID, name string, orderItems
 			}
 		}
 	}
+
+	if err := o.orderProjection.HandleEvent(&orderAggregate); err != nil {
+		return err
+	}
 	return nil
 }
 
-func NewCommandOrderUsecase(eventStore core.EventRepository, aggregateRepo core.AggregateRepository) CommandOrderUsecase {
+func NewCommandOrderUsecase(eventStore core.EventRepository, aggregateRepo core.AggregateRepository, orderProjection OrderProjection) CommandOrderUsecase {
 	return &commandOrderUsecase{
-		eventRepo:     eventStore,
-		aggregateRepo: aggregateRepo,
+		eventRepo:       eventStore,
+		aggregateRepo:   aggregateRepo,
+		orderProjection: orderProjection,
 	}
 }

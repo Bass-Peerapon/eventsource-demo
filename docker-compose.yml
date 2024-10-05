@@ -11,7 +11,8 @@ services:
     ports:
       - "3000:3000"
     environment:
-      - POSTGRES_DNS=postgresql://postgres:admin@ordering-postgres:5432/order-event?sslmode=disable
+      - ORDER_EVENT_STORE=postgresql://postgres:admin@ordering-postgres:5432/order-event?sslmode=disable
+      - ORDER_REAND_DB=postgresql://postgres:admin@ordering-postgres:5432/order-read?sslmode=disable
       - APP_PORT=3000
       - KAFKA_BROKERS=kafka:9092
       - DEBUG=true
@@ -27,9 +28,11 @@ services:
     environment:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=admin
-      - POSTGRES_DB=order-event
+      - POSTGRES_MULTIPLE_DATABASES="order-event", "order-read"
     networks:
       - default
+    volumes:
+      - ./multiple-databases.sh:/docker-entrypoint-initdb.d/multiple-databases.sh
 
   inventory-service:
     container_name: inventory-service
